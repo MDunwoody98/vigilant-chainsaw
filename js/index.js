@@ -27,7 +27,6 @@ $(function() {
     }
     createBoard(userGrid,userSquares,width)
     createBoard(computerGrid,computerSquares,width)
-    console.log('made grids')
 
     //grid of ships and their names and horizontal/vertical sizes
     const shipArray = [
@@ -56,14 +55,14 @@ $(function() {
             name: "battleship",
             directions: [
                 [0,1,2,3],
-                [0,width, width * 2, width * 3]
+                [0,width, width*2, width*3]
             ]
         },
         {
             name: "carrier",
             directions: [
                 [0,1,2,3,4],
-                [0,width, width * 2, width * 3, width * 4]
+                [0,width, width*2, width*3, width*4]
             ]
         }
     ]
@@ -77,13 +76,12 @@ $(function() {
         //Start position for ship. Random square on grid take away the ship direction's length * direction
         //horizontal - cruiser will have 3 subtracted. For vertical it will have 30 subtracted as it cannot start on cells 71-100
         //This allows the ship to be wholly painted onto the grid from assigning a "safe" start position that won't overflow
-        let randomStartPosition = Math.floor(Math.random() * computerSquares.length) - (ship.directions[0].length * direction)
+        //Math.abs forces this number to be positive in case it tries to place on a negative square
+        let randomStartPosition = Math.floor(Math.random() * (computerSquares.length - (ship.directions[0].length * direction)))
         //Make sure square is not already taken by other ship
         //for each square that would be consumed by the current ship at its chosen orientation,
         //check the grid for the AI's ship positions, starting at randomStartPosition.
         //If any of the squares contains a class of "taken" then a different random start position must be used
-        console.log('got to generation bit')
-        console.log(chosenOrientation.some(index =>computerSquares[randomStartPosition + index]))
         const isTaken = chosenOrientation.some(index =>computerSquares[randomStartPosition + index].classList.contains("taken"))
         //assume width is 10 for a 10x10 grid. Check the start position - should be from 1-100
         //Check each square that the ship will occupy. If that square's index % width is equal to width-1, it is on the right edge
