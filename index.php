@@ -1,11 +1,21 @@
 <?php
+session_start();
+//header("Content-Type: text/plain");
+$_SESSION['variable'] = "test";
+
+if (isset($_SESSION['variable'])) {
+    # code...
+}
+
 ?>
 <!DOCTYPE html>
 <html>
     <head>
         <meta charset="utf-8">
         <title>BattleShips!</title>
-        <link rel="stylesheet" href="styles.css">
+        <link rel="stylesheet" href="css/styles.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="js/index.js"></script>
     </head>
     <body>
     <div class="container">

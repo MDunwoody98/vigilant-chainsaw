@@ -77,3 +77,23 @@
     width: 50px;
     height: 50px;
 }
+
+.destroyer {
+    background-color: yellow;
+}
+
+.cruiser {
+    background-color: yellowgreen;
+}
+
+.submarine {
+    background-color: cadetblue;
+}
+
+.battleship {
+    background-color: orangered;
+}
+
+.carrier {
+    background-color: blueviolet;
+}
