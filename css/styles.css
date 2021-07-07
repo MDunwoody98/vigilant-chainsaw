@@ -137,3 +137,10 @@
 .carrier {
     background-color: azure;
 }
+
+.hit {
+    background-color: red;
+}
+.miss {
+    background-color: black;
+}

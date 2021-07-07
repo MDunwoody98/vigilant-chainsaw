@@ -1,7 +1,7 @@
 $(function() {
     const userGrid = $('.grid-user')
     const computerGrid = $('.grid-computer')
-    const displayGrid = $('.grid-display')
+    const displayGrid = document.querySelector('.grid-display')
     const ships = $('.ship')
     const destroyer = $('.destroyer-container')[0]
     const submarine = $('.submarine-container')[0]
@@ -18,6 +18,8 @@ $(function() {
     const width = 10;
 
     let isHorizontal = true;
+    let isGameOver = false
+    let currentPlayer = 'user'
 
     function createBoard(grid, squares, width){
         for (let index = 0; index < width ** 2; index++) {
@@ -169,32 +171,30 @@ $(function() {
         const notAllowedHorizontal = generateForbiddenHorizontalSquares(draggedShipFinalIndex)
         //Create an array of squares in which the topmost index of a ship cannot be dropped
         const notAllowedVertical = generateForbiddenVerticalSquares(draggedShipFinalIndex)
-        console.log(notAllowedVertical)
-
         //Ship being dragged - what is the index of the square being picked up? Destroyer will return 0 or 1, depending on which square is being dragged
         selectedShipIndex = parseInt(selectedShipAndIndex.substr(-1)) * horizontalOffset
         //Adjust shipLastId so that it returns the number of remaining squares to the bottom/right of the current square being dragged 
         shipLastId -= selectedShipIndex
         //first ID is only being used to check vertical ships, so we only care about this when it's multiplied by width
         shipFirstId -= selectedShipIndex
-        console.log(shipFirstId)
-        console.log(squareReceivingDrop)
-        console.log(shipLastId)
+        //all squares the ship would occupy
         //Draw ship on grid
-        
         //if we're placing it horizontally and the LAST occupied square of the ship isn't in the forbidden tiles
         //If we're placing vertically then this should check that the FIRST square the ship occupies is not in the forbidden zone
         if ((isHorizontal && !notAllowedHorizontal.includes(shipLastId)) || (!isHorizontal && !notAllowedVertical.includes(shipFirstId))) {
+            //array of integers between ship first ID and ship Last ID with a separator of 1 or width - none of the tickets being hovered over contains 'taken'
+            squaresToPaint = []
             for (let i = 0; i < draggedShipLength; i++) {
-            userSquares[squareReceivingDrop - selectedShipIndex + (i * horizontalOffset)].classList.add(draggedShipNameClass,'taken')
+                squareIndex = squareReceivingDrop - selectedShipIndex + (i * horizontalOffset)
+                if (userSquares[squareIndex].classList.contains("taken")) return//if any of the squares are already taken, don't paint the ship
+                squaresToPaint.push(squareIndex)
              }
+            squaresToPaint.forEach(square => userSquares[square].classList.add('taken',draggedShipNameClass))
+            displayGrid.removeChild(draggedShip)
         }
-        
-        displayGrid.removeChild(draggedShip)
-
       }
       function dragEnd(){
-
+          console.log('drag end')
       }
       function generateForbiddenHorizontalSquares(draggedShipFinalIndex){
           let squares = []
@@ -219,4 +219,39 @@ $(function() {
           }
           return squares
       }
+      function playGame() {
+          if (isGameOver) return
+          if (currentPlayer === 'user'){
+              turnDisplay.innerHTML = 'Your Turn'
+              computerSquares.forEach(square => square.addEventListener('click', function(e){
+                  revealSquare(square)
+              }));
+          }
+          if (currentPlayer === 'computer'){
+            turnDisplay.innerHTML = 'Computer\'s Turn'
+        }
+      }
+      let destroyerCount = 0
+      let cruiserCount = 0
+      let submarineCount = 0
+      let battleshipCount = 0
+      let carrierCount = 0
+      startButton.on('click',playGame)
+      function revealSquare(square) {
+          //don't carry out a turn if the square has already been guessed
+          if (square.classList.contains('hit') || square.classList.contains('miss')) return
+          if (square.classList.contains('destroyer')) destroyerCount++
+          if (square.classList.contains('destroyer')) cruiserCount++
+          if (square.classList.contains('destroyer')) submarineCount++
+          if (square.classList.contains('destroyer')) battleshipCount++
+          if (square.classList.contains('destroyer')) carrierCount++
+
+          if (square.classList.contains('taken')) {
+              square.classList.add('hit')
+          } else {
+              square.classList.add('miss')
+          }
+      }
+
+
 });
