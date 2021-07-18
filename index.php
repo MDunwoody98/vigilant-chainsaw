@@ -1,13 +1,3 @@
-<?php
-session_start();
-//header("Content-Type: text/plain");
-$_SESSION['variable'] = "test";
-
-if (isset($_SESSION['variable'])) {
-    # code...
-}
-
-?>
 <!DOCTYPE html>
 <html>
     <head>
