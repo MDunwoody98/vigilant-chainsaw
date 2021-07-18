@@ -315,7 +315,7 @@ $(function() {
               infoDisplay.html("The computer has sunk your battleship")
               cpuBattleshipCount = 10
           }
-          if (cpuCarrierount === 5) {
+          if (cpuCarrierCount === 5) {
               infoDisplay.html("The computer has sunk your carrier")
               cpuCarrierCount = 10
           }
