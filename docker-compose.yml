@@ -1,8 +1,16 @@
 version: "3"
 services:
-    php_dev:
+    apache_web_server:
         build: .
         volumes:
             - .:/var/www/html
         ports:
             - 8888:80
+    php_socket_server:
+        build: ./WebSocketServer
+        volumes:
+            - ./WebSocketServer:/var/www/server
+            - ./vendor:/var/www/server/vendor
+        working_dir: /var/www/server
+        ports: 
+            - 8080:8080

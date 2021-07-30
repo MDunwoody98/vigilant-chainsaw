@@ -1,4 +1,7 @@
 $(function() {
+    
+        
+    //Battleship logic
     const userGrid = $('.grid-user')
     const computerGrid = $('.grid-computer')
     const displayGrid = document.querySelector('.grid-display')
@@ -11,7 +14,9 @@ $(function() {
     const startButton = $('#start')
     const rotateButton = $('#rotate')
     const turnDisplay = $('#turn')
-    const infoDisplay = $('#info')
+    const infoDisplay = document.querySelector('#info')
+    const singlePlayerButton = $("#singlePlayerButton")
+    const multiPlayerButton = $("#multiPlayerButton")
 
     const userSquares = []
     const computerSquares = []
@@ -19,7 +24,126 @@ $(function() {
 
     let isHorizontal = true;
     let isGameOver = false
-    let currentPlayer = 'user'
+
+    //Socket Connection variables
+    let currentPlayer = 'user'//player 0 will go first
+    let gameMode = ""
+    let playerNum = 0;
+    let ready = false;
+    let enemyReady = false;
+    let allShipsPlaced = false;
+    let shotFired = -1;
+
+    //Select player mode
+    singlePlayerButton.on("click",startSinglePlayer)
+    multiPlayerButton.on("click",startMultiPlayer)
+    
+    //Multiplayer function - get client's player index
+    function playerIndex(index){
+        if (index == -1) {
+            infoDisplay.innerHTML = "Sorry, the server is full"
+        }
+        playerNum = parseInt(index)
+        //Player 1 is going to be enemy
+        if (playerNum === 1) currentPlayer = "Enemy"
+        console.log("Client side playerNum:  " + playerNum);
+    }
+    //A player has connected or disconnected
+    function playerConnection(index){
+        console.log("Player "+ parseInt(index) + " has connected or disconnected")
+        playerConnectedOrDisconnected(index)
+    }
+    function playerConnectedOrDisconnected(index){
+        //player 0 is 1, player 1 is 2
+        let player = `.p${parseInt(index) +1}`
+        //template selector to get div of class p1 or p2 and the .connected div within it, and the span tag within it
+        //Make that span green
+        document.querySelector(`${player} .connected span`).classList.toggle("green")
+        //If the player that just connected is this client
+        if (parseInt(index === playerNum)) document.querySelector(player).style.fontWeight = 'bold';
+    }
+
+    //Multi Player
+    function startMultiPlayer(){
+        console.log("multiplayer")
+        gameMode = "multiPlayer"
+        //Socket logic - making a connection to PHP web socket server from JS client in browser
+        //only want socket logic in multiplayer mode
+        var socket = new WebSocket('ws://localhost:8080');
+        // Open the socket
+        socket.onopen = function(e) {
+            var msg = 'I am the client and I have opened a socket connection.';
+            console.log('> ' + msg);
+            // Send an initial message
+            socket.send(msg);
+        };
+
+        // Listen for messages
+        socket.onmessage = function(event) {
+            var jsonResponse = true;
+            var message;
+            console.log(event.data)
+            try {
+                message = $.parseJSON(event.data);
+            } catch (error) {
+                jsonResponse = false;
+            }
+        
+            //Call appropriate function based on keys in returned JSON from php socket if message is json
+            switch (jsonResponse) {
+                case false: break;
+                case message.playerIndex != null:
+                    console.log('< Player index: ' + message.playerIndex);
+                    playerIndex(message.playerIndex);
+                    break;
+                case message.playerConnection != null:
+                    playerConnection(message.playerConnection)
+            
+                default:
+                    break;
+            }
+        };
+        // Listen for socket closes
+        socket.onclose = function(event) {
+            console.log('Client notified socket has closed', event);
+            socket.close()
+        };
+    }
+
+    //Single Player
+    function startSinglePlayer(){
+        gameMode = "singlePlayer"
+        //only generate computer ships in single player mode
+        shipArray.forEach(ship => generate(ship,width))
+        startButton.on('click',playGameSingle)
+    }
+
+    function initBoardAjax(data){
+        $.ajax(
+            {
+                type: "POST",
+                dataType: "json",
+                data: "gridsize="+data,
+                cache:false,
+                url:"../php/initBoard.php",
+                success: function(jsonObj){
+                    console.dir(jsonObj);
+                }
+            });
+    }
+    function attackAjax(data){
+        $.ajax(
+            {
+                type: "POST",
+                dataType: "json",
+                data: "target="+data,
+                cache:false,
+                url:"../php/initBoard.php",
+                success: function(jsonObj){
+                    console.dir(jsonObj);
+                }
+            });
+    }
 
     function createBoard(grid, squares, width){
         for (let index = 0; index < width ** 2; index++) {
@@ -81,7 +205,6 @@ $(function() {
         //Start position for ship. Random square on grid take away the ship direction's length * direction
         //horizontal - cruiser will have 3 subtracted. For vertical it will have 30 subtracted as it cannot start on cells 71-100
         //This allows the ship to be wholly painted onto the grid from assigning a "safe" start position that won't overflow
-        //Math.abs forces this number to be positive in case it tries to place on a negative square
         let randomStartPosition = Math.floor(Math.random() * (computerSquares.length - (ship.directions[0].length * direction)))
         //Make sure square is not already taken by other ship
         //for each square that would be consumed by the current ship at its chosen orientation,
@@ -99,7 +222,6 @@ $(function() {
         if (!isTaken && !isAtRightEdge && !isAtLeftEdge) chosenOrientation.forEach(index => computerSquares[randomStartPosition + index].classList.add('taken', ship.name))
         else generate(ship, width)
     }
-    shipArray.forEach(ship => generate(ship,width))
 
     //Call rotate function when rotate button is clicked
     $('#rotate').click(rotate);
@@ -219,7 +341,7 @@ $(function() {
           }
           return squares
       }
-      function playGame() {
+      function playGameSingle() {
           if (isGameOver) return
           if (currentPlayer === 'user'){
               computerSquares.forEach(square => square.addEventListener('click', function(e){
@@ -240,7 +362,7 @@ $(function() {
       let cpuSubmarineCount = 0
       let cpuBattleshipCount = 0
       let cpuCarrierCount = 0
-      startButton.on('click',playGame)
+
       function revealSquare(square) {
           //don't carry out a turn if the square has already been guessed
           if (square.classList.contains('hit') || square.classList.contains('miss')) return
@@ -258,7 +380,7 @@ $(function() {
           turnDisplay.html('Computer\'s turn')
           checkForWins()
           currentPlayer = 'computer'
-          playGame()
+          playGameSingle()
       }
       function computerGo(){
           let randomSquareToAttack = userSquares[Math.floor(Math.random() * userSquares.length)]
@@ -275,7 +397,7 @@ $(function() {
         }
         turnDisplay.html('Your turn')
         currentPlayer = 'user'
-        playGame()
+        playGameSingle()
       }
 
       function checkForWins(){
@@ -330,7 +452,7 @@ $(function() {
       }
       function gameOver() {
           isGameOver = true
-          startButton.off('click', playGame)
+          startButton.off('click', playGameSingle)
       }
 
 
@@ -338,7 +460,7 @@ $(function() {
 
       //code shamelessly stolen from class
       var size = 4;
-      buildBoard(size);
+      //buildBoard(size);
       var data = {gridSize: size};
       $(".cell").on("click",function(){
         id = this.id;
@@ -354,8 +476,8 @@ $(function() {
                   dataType:"json",
                   data:"gridSize="+data,
                   cache:false,
-                  url="../php/initBoard.php",
-                  success=function(jsonObj){
+                  url:"../php/initBoard.php",
+                  success:function(jsonObj){
                       console.dir(jsonObj);
                   }
               });
@@ -367,8 +489,8 @@ $(function() {
                   dataType:"json",
                   data:"data="+data,
                   cache:false,
-                  url="../php/attack.php",
-                  success=function(jsonObj){
+                  url:"../php/attack.php",
+                  success:function(jsonObj){
                       console.dir(jsonObj);
                   }
               });

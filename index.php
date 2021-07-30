@@ -8,6 +8,20 @@
         <script src="js/index.js"></script>
     </head>
     <body>
+        <button id="singlePlayerButton">Single Player Button</button>
+        <button id="multiPlayerButton">Multi Player Button</button>
+        <div class="player p1">
+            Player 1
+            <div class="connected">Connected <span></span></div>
+            <div class="ready">Ready <span></span></div>
+        </div>
+        <div class="player p2">
+            Player 2
+            <div class="connected">Connected <span></span></div>
+            <div class="ready">Ready <span></span></div>
+        </div>
+
+
     <div class="container">
         <div class="grid grid-user"></div>
         <div class="grid grid-computer"></div>
@@ -48,6 +62,7 @@
         </div>
     </div>
     <?php
+        phpinfo();
         echo '<p>Your order is as follows: </p>';
         echo htmlspecialchars($tireQty) . ' tires<br />';
         echo htmlspecialchars($oilQty) . ' bottles of oil<br />'; echo htmlspecialchars($sparkQty) . ' spark plugs<br />';
