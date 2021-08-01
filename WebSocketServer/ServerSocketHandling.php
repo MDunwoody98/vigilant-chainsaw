@@ -3,9 +3,11 @@
 namespace WebSocketServer;
 //Server container process is not by default in html directory
 require dirname(__DIR__) . '/server/vendor/autoload.php';
+require_once("Player.php");
 //Specify Ratchet interfaces
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
+use WebSocketServer\Player;
 
 //Class for Server sockets - I levereged the Ratchet library for true online multiplayer
 class ServerSocketHandling implements MessageComponentInterface {
@@ -29,22 +31,21 @@ class ServerSocketHandling implements MessageComponentInterface {
         echo "\nNew connection: {$conn->resourceId}\n";
         $this->playerIndex = -1;
         //If there are fewer than 2 connections, give this connection an index
-        for ($i=0; $i < 2; $i++) { 
-            if ($this->players[$i] === null) {
+        for ($i=0; $i < 2; $i++) {
+            if (sizeOf($this->players) === $i) {
                 $this->playerIndex = $i;
-                break;
             }
         }
         //Tell the client their player number
         $data->playerIndex = $this->playerIndex;
         //data must be a php object but can be sent as a json encoded string to client
         $conn->send(json_encode($data));
-        echo "Player {$this->playerIndex} has connected";
+        echo "Player {$this->playerIndex} has connected with connection id {$conn->resourceId}\n";
         //Ignore any client if 2 players already connected
         if ($this->playerIndex == -1 ) {return;}
-        //Players array - was null, now false to indicate that the connection exists and player is not ready to play
-        echo "time to evaluate things";
-        $this->players[$this->playerIndex] = false;
+        //Players array - was null, now add client and set ready to false to indicate that the connection exists and player is not ready to play
+        array_push($this->players, new Player($this->playerIndex, $conn->resourceId));
+        echo "Player array size ". sizeof($this->players) . " and value ". $this->players;
         //Broadcast the latest connection to all clients
         $data2->playerConnection = $this->playerIndex;
         foreach ($this->clients as $client)
@@ -57,32 +58,96 @@ class ServerSocketHandling implements MessageComponentInterface {
     {
         $numRecv = count($this->clients) -1;
         echo sprintf("\nConnection %d sending message %s to %d other connection%s \n", $from->resourceId, $msg, $numRecv, $numRecv == 1 ? '' : 's');
-        foreach ($this->clients as $client)
+        //variable to send connections to the other player
+        $thisPlayer = $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($from, true)];
+        $otherPlayer = $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($from, false)];
+        $otherPlayerClient = $otherPlayer != null ? $this->returnClientContainingThisResourceId($otherPlayer->getResourceId()) : null;
+        //only process message if json data is received and if there's another connected client
+        $jsonResponse = ($otherPlayerClient != NULL);
+        $data;
+        try {
+            $data = json_decode($msg);
+            if (is_null($data) || strlen($msg) < 1) {
+                throw ('Error');
+              }
+        } catch (\Throwable $th) {
+            $jsonResponse = false;
+        }
+        //Only process message if it's a json response and there are other clients to receive messages
+        switch (true)
         {
-            if ($from != $client)
-            {
-                $client->send($msg);
+            case $jsonResponse == false: break;
+            case $data->playerReady == true: $this->enemyReady($from, $otherPlayerClient); break;
+            case $data->checkPlayers == true: $this->checkPlayers($from, $otherPlayer); break;
+            default: break;
+        }
+    }
+    public function enemyReady($readyPlayer, $playerToInform)
+    {
+        //Set player object to ready
+        $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($readyPlayer, true)]->readyUp();
+        //ready up the ready player in the players array, inform the other player that the enemy is ready
+        $data->enemyReady = true;
+        $data->indexOfReadyPlayer = $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($readyPlayer, true)]->getIndex();
+        $playerToInform->send(json_encode($data));
+    }
+    public function returnClientContainingThisResourceId($resourceID)
+    {
+        foreach ($this->clients as $client) {
+            if ($client->resourceId == $resourceID) {
+                return $client;
             }
         }
-        // $data = json_decode($msg);
-        // switch ($data->key)
-        // {
-        //     //case "a": functionA(); break;
-        //     default: break;
-        // }
+    }
+    public function checkPlayers($connectedClient, $otherPlayer)
+    {
+        //function to check for other connections and their ready statuses
+        //If other client is null, return false/nothing. There's no other connection
+        //If other player->ready status is false, return that the player exists and is not ready
+        //Otherwise, return that player is connected and is ready
+        $data->otherPlayerExists = ($otherPlayer != null);
+        $data->otherPlayerReady = $data->otherPlayerExists ? $otherPlayer->getReadyStatus() : false;
+        $data->otherPlayerIndex = $data->otherPlayerExists ? $otherPlayer->getIndex() : -1;
+        //Tell the connectedclient this data
+        $connectedClient->send(json_encode($data));
+
+
     }
     //When page refreshes or browser window closes, socket connection dies
     public function onClose(ConnectionInterface $conn)
     {
         $this->clients->detach($conn);
         echo "Closing connection: {$conn->resourceId}\n";
-        unset($this->players[$conn->resourceId]);
+        unset($this->players[$this->getKeyForPlayerMatchingConnectionResourceId($conn, true)]);
+        echo "After closing {$conn->resourceId}, the connected players array size is ". sizeof($this->players);
+        $data->playerConnection = $this->playerIndex;
+        foreach ($this->clients as $client)
+        {
+            $client->send(json_encode($data));
+        }
+    }
+    public function getKeyForPlayerMatchingConnectionResourceId(ConnectionInterface $conn, bool $returnThisPlayerAndDontReturnEnemy)
+    {
+        //Get key for players array that corresponds to the resource ID of the object implementing ConnectionInterface
+        foreach ($this->players as $connectedPlayer) {
+            if (($connectedPlayer->getResourceId() == $conn->resourceId) == $returnThisPlayerAndDontReturnEnemy) {
+                //Have to get key when we have value.
+                if (($key = array_search($connectedPlayer, $this->players)) !== false) {
+                    return $key;
+                }
+            }
+        }
+        return null;
     }
     //If error occurs, log it
     public function onError(ConnectionInterface $conn, \Exception $e)
     {
         echo "An error has occurred: {$e->getMessage()}\n";
         $conn->close();
+        try {
+            $this->clients->detach($conn);
+            unset($this->players[$this->getKeyForPlayerMatchingConnectionResourceId($conn, true)]);
+        } catch (\Throwable $th) {}
     }
 
 

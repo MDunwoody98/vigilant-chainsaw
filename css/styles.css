@@ -151,7 +151,7 @@
 
 .connected span,
 .ready span {
-    display: inline;
+    display: inline-block;
     width: 1rem;
     height: 1rem;
     background:red;

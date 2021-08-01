@@ -1,6 +1,4 @@
 $(function() {
-    
-        
     //Battleship logic
     const userGrid = $('.grid-user')
     const computerGrid = $('.grid-computer')
@@ -39,28 +37,48 @@ $(function() {
     multiPlayerButton.on("click",startMultiPlayer)
     
     //Multiplayer function - get client's player index
-    function playerIndex(index){
+    function playerIndex(socket, index){
         if (index == -1) {
             infoDisplay.innerHTML = "Sorry, the server is full"
+            return
         }
         playerNum = parseInt(index)
         //Player 1 is going to be enemy
         if (playerNum === 1) currentPlayer = "Enemy"
         console.log("Client side playerNum:  " + playerNum);
+        //Check to see if other player(s) are connected and their status
+        let data = {checkPlayers: true}
+        socket.send(JSON.stringify(data))
     }
     //A player has connected or disconnected
     function playerConnection(index){
         console.log("Player "+ parseInt(index) + " has connected or disconnected")
         playerConnectedOrDisconnected(index)
     }
+
     function playerConnectedOrDisconnected(index){
         //player 0 is 1, player 1 is 2
         let player = `.p${parseInt(index) +1}`
         //template selector to get div of class p1 or p2 and the .connected div within it, and the span tag within it
         //Make that span green
         document.querySelector(`${player} .connected span`).classList.toggle("green")
-        //If the player that just connected is this client
+        //If the player that just connected is this client, make player indicator bold
         if (parseInt(index === playerNum)) document.querySelector(player).style.fontWeight = 'bold';
+    }
+
+    function processEnemyReady(socket, indexOfReadyPlayer){
+        enemyReady = true;
+        playerReady(indexOfReadyPlayer)
+        if (ready) playGameMulti(socket)
+    }
+
+    function processOtherPlayers(otherPlayerExists, otherPlayerReady, otherPlayerIndex){
+        if (!otherPlayerExists) return
+        playerConnectedOrDisconnected(otherPlayerIndex)
+        if (otherPlayerReady) {
+            playerReady(otherPlayerIndex)
+            enemyReady = true;
+        }
     }
 
     //Multi Player
@@ -82,7 +100,7 @@ $(function() {
         socket.onmessage = function(event) {
             var jsonResponse = true;
             var message;
-            console.log(event.data)
+            console.log("Received " +event.data)
             try {
                 message = $.parseJSON(event.data);
             } catch (error) {
@@ -90,14 +108,17 @@ $(function() {
             }
         
             //Call appropriate function based on keys in returned JSON from php socket if message is json
-            switch (jsonResponse) {
+            switch (jsonResponse && message != null) {
                 case false: break;
                 case message.playerIndex != null:
                     console.log('< Player index: ' + message.playerIndex);
-                    playerIndex(message.playerIndex);
+                    playerIndex(this, message.playerIndex);
                     break;
                 case message.playerConnection != null:
-                    playerConnection(message.playerConnection)
+                    playerConnection(message.playerConnection);
+                    break;
+                case message.enemyReady == true: processEnemyReady(this, message.indexOfReadyPlayer)
+                case message.otherPlayerExists !=null: processOtherPlayers(message.otherPlayerExists, message.otherPlayerReady, message.otherPlayerIndex)
             
                 default:
                     break;
@@ -108,6 +129,15 @@ $(function() {
             console.log('Client notified socket has closed', event);
             socket.close()
         };
+        //close socket on refresh
+        window.onload = function () {
+            socket.close();
+         };
+        //Ready button click
+        startButton.on("click", ()=>{
+            if (allShipsPlaced) playGameMulti(socket)
+            else infoDisplay.innerHTML = "Please place all your ships!"
+        })
     }
 
     //Single Player
@@ -115,7 +145,10 @@ $(function() {
         gameMode = "singlePlayer"
         //only generate computer ships in single player mode
         shipArray.forEach(ship => generate(ship,width))
-        startButton.on('click',playGameSingle)
+        startButton.on('click', () => {
+            if (allShipsPlaced) playGameSingle
+            else infoDisplay.innerHTML = "Please place all your ships!"
+        })
     }
 
     function initBoardAjax(data){
@@ -313,6 +346,8 @@ $(function() {
              }
             squaresToPaint.forEach(square => userSquares[square].classList.add('taken',draggedShipNameClass))
             displayGrid.removeChild(draggedShip)
+            //If no child ships remain in displayGrid then all ships have been placed
+            if (!displayGrid.querySelector(".ship")) allShipsPlaced = true;
         }
       }
       function dragEnd(){
@@ -341,6 +376,30 @@ $(function() {
           }
           return squares
       }
+      //Multi Player game logic
+      function playGameMulti(socket) {
+          if (isGameOver) return
+          if (!ready) {
+              var msg = new Object();
+              msg.playerReady = true;
+              socket.send(JSON.stringify(msg))
+              ready = true
+              playerReady(playerNum)
+          }
+          if (enemyReady) {
+              if (currentPlayer == "user") {
+                  turnDisplay.innerHTML = "Your turn"
+              }
+              if (currentPlayer == "enemy") {
+                turnDisplay.innerHTML = "Enemy's turn"
+              }
+          }
+      }
+      function playerReady(num) {
+          let player = `.p${parseInt(num)+1}`
+          document.querySelector(`${player} .ready span`).classList.toggle("green")
+      }
+      //Single Player game logic
       function playGameSingle() {
           if (isGameOver) return
           if (currentPlayer === 'user'){
