@@ -62,8 +62,8 @@ class ServerSocketHandling implements MessageComponentInterface {
         $thisPlayer = $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($from, true)];
         $otherPlayer = $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($from, false)];
         $otherPlayerClient = $otherPlayer != null ? $this->returnClientContainingThisResourceId($otherPlayer->getResourceId()) : null;
-        //only process message if json data is received and if there's another connected client
-        $jsonResponse = ($otherPlayerClient != NULL);
+        //only process message if json data is received
+        $jsonResponse = true;
         $data;
         try {
             $data = json_decode($msg);
@@ -76,9 +76,16 @@ class ServerSocketHandling implements MessageComponentInterface {
         //Only process message if it's a json response and there are other clients to receive messages
         switch (true)
         {
+            //Switch statement to execute appropriate socket behaviour based on received JSON from client
             case $jsonResponse == false: break;
+            //If the player readies up, tell the server they are ready and inform any enemies
             case $data->playerReady == true: $this->enemyReady($from, $otherPlayerClient); break;
+            //The client is requesting to know whether there are other connected players already
             case $data->checkPlayers == true: $this->checkPlayers($from, $otherPlayer); break;
+            //If the client attacked, tell the enemy which square they targeted
+            case $data->shotFired != null: $this->attack($data->shotFired, $otherPlayerClient);
+            //If the client was attacked, inform the server and attacking client details of the attack
+            case $data->fireReply != null: $this->processAttack($data->fireReply, $otherPlayerClient);
             default: break;
         }
     }
@@ -89,7 +96,8 @@ class ServerSocketHandling implements MessageComponentInterface {
         //ready up the ready player in the players array, inform the other player that the enemy is ready
         $data->enemyReady = true;
         $data->indexOfReadyPlayer = $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($readyPlayer, true)]->getIndex();
-        $playerToInform->send(json_encode($data));
+        if ($playerToInform != null) $playerToInform->send(json_encode($data));
+        
     }
     public function returnClientContainingThisResourceId($resourceID)
     {
@@ -110,9 +118,22 @@ class ServerSocketHandling implements MessageComponentInterface {
         $data->otherPlayerIndex = $data->otherPlayerExists ? $otherPlayer->getIndex() : -1;
         //Tell the connectedclient this data
         $connectedClient->send(json_encode($data));
-
-
     }
+    //Attack function - client has targeted a tile of another player
+    public function attack($idOfTargetedTile, $clientConnectionOfTargetedPlayer)
+    {
+        $data->attack = $idOfTargetedTile;
+        $clientConnectionOfTargetedPlayer->send(json_encode($data));
+    }
+    //Process attack - the attacked client has told server of the shot details, fwd this data to the attacking client
+    public function processAttack($classListOfTargetedSquare, $opponentClient)
+    {
+        //forward reply to the other player's client
+        echo "Classes are " . var_dump($classListOfTargetedSquare);
+        $data->shotReport = $classListOfTargetedSquare;
+        $opponentClient->send(json_encode($data));
+    }
+
     //When page refreshes or browser window closes, socket connection dies
     public function onClose(ConnectionInterface $conn)
     {
@@ -120,6 +141,7 @@ class ServerSocketHandling implements MessageComponentInterface {
         echo "Closing connection: {$conn->resourceId}\n";
         unset($this->players[$this->getKeyForPlayerMatchingConnectionResourceId($conn, true)]);
         echo "After closing {$conn->resourceId}, the connected players array size is ". sizeof($this->players);
+        //inform all clients that a connection has died
         $data->playerConnection = $this->playerIndex;
         foreach ($this->clients as $client)
         {
@@ -149,35 +171,5 @@ class ServerSocketHandling implements MessageComponentInterface {
             unset($this->players[$this->getKeyForPlayerMatchingConnectionResourceId($conn, true)]);
         } catch (\Throwable $th) {}
     }
-
-
-
-    // $host = "127.0.0.1";
-    // $port = 8888;
-    // // No Timeout 
-    // set_time_limit(0);
-    // //create socket
-    // $socket = socket_create(AF_INET, SOCK_STREAM, 0) or die("Could not create socket\n");
-    // //No need to bind() or connnect() since Docker already started the Apache server
-    // $message = "message message mgessage";
-
-    // while (true)
-    // {
-    //     //read server response message
-    //     $result = socket_listen($socket, 1024) or die("Could not set up socket listener\n");
-    //     echo "reply from server: ".$result . " listening on port " . $port;
-    //     //accept incoming connection
-    //     $spawn = socket_accept($socket) or die("Could not accept incoming connection\n");
-    //     //read message from client socket
-    //     $input = socket_read($spawn,1024) or die("Could not read input.\n");
-    //     echo $input;
-    //     //send message back to client
-    //     $output = "output text output text";
-    //     socket_write($spawn,$output,strlen($output)) or die("Could not write output.\n");
-    // }
-    // socket_close($spawn);
-    // socket_close($socket);
 }
-//declare localhost and port
-
 ?>
