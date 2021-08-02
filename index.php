@@ -10,8 +10,20 @@
         <script src="js/intro.js"></script>
     </head>
     <body>
-        <div class="title">Battleships</div>
-        <button>Single Player Button</button>
-        <button>Multi Player Button</button>
+        <div class="splash-container">
+            <h1 class="title">Battleships</div>
+            <div class="row">
+                <div class="column" id="singlePlayer">
+                    <div class="container1">
+                        Single player
+                    </div>
+                </div>
+                <div class="column" id="multiPlayer">
+                    <div class="container1">
+                        Multiplayer
+                    </div>
+                </div>
+            </div>
+        </div>
     </body>
 </html>

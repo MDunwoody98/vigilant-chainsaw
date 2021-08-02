@@ -1,7 +1,7 @@
 $(function() {
     //Battleship logic
     const userGrid = $('.grid-user')
-    const computerGrid = document.querySelector('.grid-computer')
+    const opponentGrid = document.querySelector('.grid-computer')
     const displayGrid = document.querySelector('.grid-display')
     const ships = $('.ship')
     const destroyer = $('.destroyer-container')[0]
@@ -13,11 +13,11 @@ $(function() {
     const rotateButton = $('#rotate')
     const turnDisplay = $('#turn')
     const infoDisplay = $('#info')
-    const singlePlayerButton = $("#singlePlayerButton")
-    const multiPlayerButton = $("#multiPlayerButton")
+    const grid = $(".grid")
+    const buttons = $(".buttons")
 
     const userSquares = []
-    const computerSquares = []
+    const opponentSquares = []
     const width = 10;
 
     let isHorizontal = true;
@@ -25,16 +25,63 @@ $(function() {
 
     //Socket Connection variables
     let currentPlayer = 'user'//player 0 will go first
-    let gameMode = ""
     let playerNum = 0;
     let ready = false;
     let enemyReady = false;
     let allShipsPlaced = false;
     let shotFired = -1;
 
-    //Select player mode
-    singlePlayerButton.on("click",startSinglePlayer)
-    multiPlayerButton.on("click",startMultiPlayer)
+    //grid of ships and their names and horizontal/vertical sizes
+    const shipArray = [
+        {
+            name: "destroyer",
+            directions: [
+                [0,1],
+                [0,width]
+            ]
+        },
+        {
+            name: "cruiser",
+            directions: [
+                [0,1,2],
+                [0,width, width * 2]
+            ]
+        },
+        {
+            name: "submarine",
+            directions: [
+                [0,1,2],
+                [0,width, width * 2]
+            ]
+        },
+        {
+            name: "battleship",
+            directions: [
+                [0,1,2,3],
+                [0,width, width*2, width*3]
+            ]
+        },
+        {
+            name: "carrier",
+            directions: [
+                [0,1,2,3,4],
+                [0,width, width*2, width*3, width*4]
+            ]
+        }
+    ]
+    //Remove focus from clicked button css
+    document.addEventListener('click', function(e) { if(document.activeElement.toString() == '[object HTMLButtonElement]'){ document.activeElement.blur(); } })
+    //grid template rows and columns should be repeating - 10*4.6vm=46vmin. 46vmin+margin of 2 gives 100% of screen size
+    grid.css({"grid-template-columns": `repeat(${width}, 4.6vmin`});
+    grid.css({"grid-template-rows": `repeat(${width}, 4.6vmin)`});
+
+    //Create boards for user and opponent
+    createBoard(userGrid,userSquares,width)
+    createBoard(opponentGrid,opponentSquares,width)
+
+    //Start game based on single/multiplayer page
+    if (gameMode == "singlePlayer") startSinglePlayer()
+    else startMultiPlayer()
     
     //Multiplayer function - get client's player index
     function playerIndex(socket, index){
@@ -95,7 +142,6 @@ $(function() {
 
     //Multi Player
     function startMultiPlayer(){
-        gameMode = "multiPlayer"
         //Socket logic - making a connection to PHP web socket server from JS client in browser
         //only want socket logic in multiplayer mode
         var socket = new WebSocket('ws://localhost:8080');
@@ -154,7 +200,7 @@ $(function() {
             if (allShipsPlaced) playGameMulti(socket)
             else infoDisplay.html("Please place all your ships!")
         })
-        computerSquares.forEach(square => {
+        opponentSquares.forEach(square => {
             square.addEventListener("click", ()=>{
                 if (currentPlayer == "user" && ready && enemyReady) {
                     shotFired = square.dataset.id
@@ -168,7 +214,6 @@ $(function() {
 
     //Single Player
     function startSinglePlayer(){
-        gameMode = "singlePlayer"
         //only generate computer ships in single player mode
         shipArray.forEach(ship => generate(ship,width))
         startButton.on("click", () => {
@@ -213,47 +258,9 @@ $(function() {
             squares.push(square)
         }
     }
-    createBoard(userGrid,userSquares,width)
-    createBoard(computerGrid,computerSquares,width)
+    
 
-    //grid of ships and their names and horizontal/vertical sizes
-    const shipArray = [
-        {
-            name: "destroyer",
-            directions: [
-                [0,1],
-                [0,width]
-            ]
-        },
-        {
-            name: "cruiser",
-            directions: [
-                [0,1,2],
-                [0,width, width * 2]
-            ]
-        },
-        {
-            name: "submarine",
-            directions: [
-                [0,1,2],
-                [0,width, width * 2]
-            ]
-        },
-        {
-            name: "battleship",
-            directions: [
-                [0,1,2,3],
-                [0,width, width*2, width*3]
-            ]
-        },
-        {
-            name: "carrier",
-            directions: [
-                [0,1,2,3,4],
-                [0,width, width*2, width*3, width*4]
-            ]
-        }
-    ]
+
     function generate(ship, width){
         //0 or 1 - horizontal or vertical
         let randomDirection = Math.floor(Math.random() * ship.directions.length)
@@ -264,12 +271,12 @@ $(function() {
         //Start position for ship. Random square on grid take away the ship direction's length * direction
         //horizontal - cruiser will have 3 subtracted. For vertical it will have 30 subtracted as it cannot start on cells 71-100
         //This allows the ship to be wholly painted onto the grid from assigning a "safe" start position that won't overflow
-        let randomStartPosition = Math.floor(Math.random() * (computerSquares.length - (ship.directions[0].length * direction)))
+        let randomStartPosition = Math.floor(Math.random() * (opponentSquares.length - (ship.directions[0].length * direction)))
         //Make sure square is not already taken by other ship
         //for each square that would be consumed by the current ship at its chosen orientation,
         //check the grid for the AI's ship positions, starting at randomStartPosition.
         //If any of the squares contains a class of "taken" then a different random start position must be used
-        const isTaken = chosenOrientation.some(index =>computerSquares[randomStartPosition + index].classList.contains("taken"))
+        const isTaken = chosenOrientation.some(index =>opponentSquares[randomStartPosition + index].classList.contains("taken"))
         //assume width is 10 for a 10x10 grid. Check the start position - should be from 1-100
         //Check each square that the ship will occupy. If that square's index % width is equal to width-1, it is on the right edge
         //Exception if the index is the final one of the ship, as that is fine to be in the rightmost column
@@ -278,7 +285,7 @@ $(function() {
         //Exception if the index is the first one of the ship, as that is fine to be in the leftmost column
         const isAtLeftEdge = chosenOrientation.slice(1).some(index => (randomStartPosition + index) % width === 0)
         //If all these are good, ship is painted onto the board. Otherwise, run function again to try a different position
-        if (!isTaken && !isAtRightEdge && !isAtLeftEdge) chosenOrientation.forEach(index => computerSquares[randomStartPosition + index].classList.add('taken', ship.name))
+        if (!isTaken && !isAtRightEdge && !isAtLeftEdge) chosenOrientation.forEach(index => opponentSquares[randomStartPosition + index].classList.add('taken', ship.name))
         else generate(ship, width)
     }
 
@@ -344,6 +351,8 @@ $(function() {
         let squareReceivingDrop = parseInt(this.dataset.id)
         //for calculating ships, use 1 for horizontal or the board width for vertical calculations
         horizontalOffset = isHorizontal ? 1 : width 
+        //This string will be used to round the edge of the ship being placed on the grid in the correct areas
+        let orientationClass = isHorizontal ? "horizontal" : "vertical"
         //final index (rightmost or bottom) of dragged ship upon being placed on board
         let shipLastId = (draggedShipFinalIndex * horizontalOffset) + squareReceivingDrop
         //ship first index - shipLastId - ship size * horizontalOffset
@@ -364,13 +373,16 @@ $(function() {
         //If we're placing vertically then this should check that the FIRST square the ship occupies is not in the forbidden zone
         if ((isHorizontal && !notAllowedHorizontal.includes(shipLastId)) || (!isHorizontal && !notAllowedVertical.includes(shipFirstId))) {
             //array of integers between ship first ID and ship Last ID with a separator of 1 or width - none of the tickets being hovered over contains 'taken'
-            squaresToPaint = []
+            let squaresToPaint = new Map()
             for (let i = 0; i < draggedShipLength; i++) {
+                let shipStartEndClass = "middle"+i
+                if (i === 0) shipStartEndClass = "start"
+                if (i === draggedShipLength - 1) shipStartEndClass = "end"
                 squareIndex = squareReceivingDrop - selectedShipIndex + (i * horizontalOffset)
                 if (userSquares[squareIndex].classList.contains("taken")) return//if any of the squares are already taken, don't paint the ship
-                squaresToPaint.push(squareIndex)
+                squaresToPaint.set(shipStartEndClass,squareIndex)
              }
-            squaresToPaint.forEach(square => userSquares[square].classList.add('taken',draggedShipNameClass))
+            squaresToPaint.forEach((squareIndex, shipStartEndClass) => userSquares[squareIndex].classList.add('taken',draggedShipNameClass, orientationClass, shipStartEndClass))
             displayGrid.removeChild(draggedShip)
             //If no child ships remain in displayGrid then all ships have been placed
             if (!displayGrid.querySelector(".ship")) allShipsPlaced = true;
@@ -405,6 +417,7 @@ $(function() {
       //Multi Player game logic
       function playGameMulti(socket) {
           if (isGameOver) return
+          buttons.css({"display":"none"})
           if (!ready) {
               var msg = new Object();
               //Tell server that player is ready and ready up player
@@ -429,8 +442,9 @@ $(function() {
       //Single Player game logic
       function playGameSingle() {
           if (isGameOver) return
+          buttons.css({"display":"none"})
           if (currentPlayer === 'user'){
-              computerSquares.forEach(square => square.addEventListener('click', function(e){
+              opponentSquares.forEach(square => square.addEventListener('click', function(e){
                   shotFired = square.dataset.id
                   revealSquare(square.classList)
               }));
@@ -452,7 +466,7 @@ $(function() {
 
       function revealSquare(classList) {
           //The square that the client just shot
-          const opponentSquare = computerGrid.querySelector(`div[data-id="${shotFired}"]`)
+          const opponentSquare = opponentGrid.querySelector(`div[data-id="${shotFired}"]`)
           const square = Object.values(classList)
           //don't carry out a turn if the square has already been guessed, if its not the user's turn, or if the game is over
           console.log("Classes of targeted square are "+opponentSquare.classList)

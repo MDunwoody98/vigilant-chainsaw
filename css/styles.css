@@ -1,156 +1,255 @@
-body {
+/*Set default styles for all elements*/
+*, *::after, *::before
+{
+    margin: 0;
+    padding: 0;
     font-family: 'Open Sans', sans-serif;
+    box-sizing: border-box;
 }
+
 .title {
     font-family: 'Pirata One', cursive;
 }
 
+/*Center all content on page*/
 .container {
     display: flex;
+    justify-content: center;
+    width: 100%;
 }
-
-.grid-user {
-    width: 500px;
-    height: 500px;
-    display: flex;
-    flex-wrap: wrap;
-    background-color: aqua;
-    margin: 25px;
+/*
+Grid needs a margin to not hit edge of page.
+set background to gradient across browsers
+*/
+.grid {
+    margin: 2vmin;
+    display: grid;
+    background: rgb(135,224,253); /* Old browsers */
+    background: -moz-radial-gradient(center, ellipse cover,  rgba(135,224,253,1) 0%, rgba(83,203,241,1) 0%, rgba(5,171,224,1) 100%); /* FF3.6-15 */
+    background: -webkit-radial-gradient(center, ellipse cover,  rgba(135,224,253,1) 0%,rgba(83,203,241,1) 0%,rgba(5,171,224,1) 100%); /* Chrome10-25,Safari5.1-6 */
+    background: radial-gradient(ellipse at center,  rgba(135,224,253,1) 0%,rgba(83,203,241,1) 0%,rgba(5,171,224,1) 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#87e0fd', endColorstr='#05abe0',GradientType=1 ); /* IE6-9 fallback on horizontal gradient */
 }
-
-.grid-computer {
-    width: 500px;
-    height: 500px;
-    display: flex;
-    flex-wrap: wrap;
-    background-color: darkgreen;
-    margin: 25px;
-}
-
+/*Grey translucent gridlines*/
 .grid div {
-    width: 50px;
-    height: 50px;
+    border: 1px solid hsla(0,0%,100%,.4);
 }
-
+/*Grid should flex and each div within a ship should be*/
 .grid-display {
-    width: 500px;
-    height: 500px;
-    margin: 25px;
-    background-color: orchid;
+    display: flex;
+}
+.ship > div {
+    width: 4.6vmin;
+    height: 4.6vmin;
+}
+/*Ship background colours, ship rounded corners on appropriate positions in grid*/
+.taken, .ship {
+    position: relative;
+    background-color: hsl(0,0%,80%);
+}
+.taken.start.vertical,
+.taken.start.vertical::before {
+    border-top-left-radius: 50%;
+    border-top-right-radius: 50%;
+}
+.taken.end.vertical,
+.taken.end.vertical::before {
+    border-bottom-left-radius: 50%;
+    border-bottom-right-radius: 50%;
+}
+.taken.start.horizontal,
+.taken.start.horizontal::before {
+    border-top-left-radius: 50%;
+    border-bottom-left-radius: 50%;
+}
+.taken.end.horizontal,
+.taken.end.horizontal::before {
+    border-top-right-radius: 50%;
+    border-bottom-right-radius: 50%;
+}
+/*Animations for a ripple on the ships*/
+.taken.vertical::before,
+.taken.horizontal::before {
+    content: '';
+    position: absolute;
+    border: .4vmin solid white;
+    top: -1px;
+    bottom: -1px;
+    left: -1px;
+    right: -1px;
+}
+.taken.horizontal::before{
+    animation: ripplesY 3s linear infinite;
+    border-left: none;
+    border-right: none;
+}
+.taken.vertical::before{
+    animation: ripplesX 3s linear infinite;
+    border-top: none;
+    border-bottom: none;
+}
+@keyframes ripplesX {
+    0%{
+        opacity: 1;
+        transform: scaleX(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scaleX(1.5);
+    }
+}
+@keyframes ripplesY {
+    0%{
+        opacity: 1;
+        transform: scaleY(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scaleY(1.5);
+    }
 }
 
-.destroyer-container {
-    width: 100px;
-    height: 50px;
-    background-color: yellow;
-    margin:10px;
+.ship {
     display: flex;
+    flex-wrap: wrap;
+    margin: 1vmin;
+    width: calc(4.6vmin * var(--width, 1));
+    height: calc(4.6vmin * var(--height, 1));
+    border-radius: 2.3vmin;
+}
+
+/*Hide opponent ships*/
+.grid-computer > .taken {
+    background:none !important;
+    border-radius: 0 !important;
+}
+
+
+/*Specify height and width for each ship*/
+.destroyer-container {
+    --width: 2;
 }
 
 .destroyer-container-vertical {
-    width: 50px;
-    height: 100px;
-    background-color: yellow;
-    margin:10px;
-    display: flex;
-    flex-wrap: wrap;
+    --height: 2;
+    --width: 1;
 }
 
-.cruiser-container {
-    width: 150px;
-    height: 50px;
-    background-color: purple;
-    margin:10px;
-    display: flex;
+.cruiser-container, .submarine-container {
+    --width: 3;
 }
-.cruiser-container-vertical {
-    width: 50px;
-    height: 150px;
-    background-color: purple;
-    margin:10px;
-    display: flex;
-    flex-wrap: wrap;
-}
-
-.submarine-container {
-    width: 150px;
-    height: 50px;
-    background-color: burlywood;
-    margin:10px;
-    display: flex;
-}
-.submarine-container-vertical {
-    width: 50px;
-    height: 150px;
-    background-color: burlywood;
-    margin:10px;
-    display: flex;
-    flex-wrap: wrap;
+.cruiser-container-vertical, .submarine-container-vertical {
+    --height: 3;
+    --width: 1;
 }
 
 .battleship-container {
-    width: 200px;
-    height: 50px;
-    background-color: grey;
-    margin:10px;
-    display: flex;
+    --width: 4;
 }
 .battleship-container-vertical {
-    width: 50px;
-    height: 200px;
-    background-color: grey;
-    margin:10px;
-    display: flex;
-    flex-wrap: wrap;
+    --height: 4;
+    --width: 1;
 }
 
 .carrier-container {
-    width: 250px;
-    height: 50px;
-    background-color: azure;
-    margin:10px;
-    display: flex;
+    --width: 5;
 }
 .carrier-container-vertical {
-    width: 50px;
-    height: 250px;
-    background-color: azure;
-    margin:10px;
+    --height: 5;
+    --width: 1;
+}
+/*Button design*/
+button {
+    background-color: hsl(202, 100%, 65%);
+    padding: .2em .5em;
+    outline: none;
+    border: none;
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: .8em;
+    font-size: inherit;
+}
+button:hover{
+    background-color: hsl(202, 100%, 55%);
+}
+button:focus{
+    outline: none;
+    box-shadow: none;
+    background-color: hsl(202, 100%, 45%);
+}
+
+
+/*
+Vertically stack info label and game buttons, add margins
+*/
+.game-options {
+    font-size: 2rem;
+    align-items: center;
+    flex-direction: column;
+}
+.info {
+    margin: 1rem;
+}
+
+
+/*
+Hit tiles turn red, misses go black
+Animation for hits and misses
+*/
+.hit,.miss{
     display: flex;
-    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
 }
-
-.ship div {
-    width: 50px;
-    height: 50px;
+.hit::after,
+.miss::after {
+    content: '';
+    position: absolute;
+    border-radius: 100%;
+    width: 2vmin;
+    height: 2vmin;
 }
-
-.destroyer {
-    background-color: yellow;
-}
-
-.cruiser {
-    background-color: purple;
-}
-
-.submarine {
-    background-color: burlywood;
-}
-
-.battleship {
-    background-color: grey;
-}
-
-.carrier {
-    background-color: azure;
-}
-
-.hit {
-    background-color: red;
-}
-.miss {
+.miss::after {
     background-color: black;
 }
+.hit::after {
+    background-color: red;
+}
+.miss::before,
+.grid-computer > .hit::before {
+    content: '';
+    position: absolute;
+    animation: attack .4s ease-out forwards;
+    border: .2vmin solid white;
+    border-radius: 100%;
+    width: 2vmin;
+    height: 2vmin;
+}
+.miss::before {
+    border-color: white;
+}
+.grid-user > .hit {
+    animation: hit .5s ease-out forwards;
+}
+@keyframes attack {
+    0% {
+        opacity: 1;
+        transform: scale(0);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(6);
+    }
+}
+@keyframes hit {
+    0% {
+        background-color: red;
+    }
+    100% {
+        background-color: hsl(0,0%,80%);
+    }
+}
+/*Multiplayer connection data design*/
 
 .connected, .ready {
     font-weight: normal;
