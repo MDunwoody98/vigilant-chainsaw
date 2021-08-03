@@ -217,13 +217,14 @@ Animation for hits and misses
 }
 .miss::before,
 .grid-computer > .hit::before {
-    content: '';
+    content: "";
     position: absolute;
     animation: attack .4s ease-out forwards;
     border: .2vmin solid white;
     border-radius: 100%;
     width: 2vmin;
     height: 2vmin;
+    pointer-events: none;
 }
 .miss::before {
     border-color: white;
@@ -253,14 +254,17 @@ Animation for hits and misses
 
 .connected, .ready {
     font-weight: normal;
+    opacity: .4;
+    text-decoration: line-through;
+}
+.player {
+    margin: 3vmin;
 }
 
-.connected span,
-.ready span {
-    display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    background:red;
+.connected.active,
+.ready.active {
+    opacity: 1;
+    text-decoration: none;
 }
 
 span.green {

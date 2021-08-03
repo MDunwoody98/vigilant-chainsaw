@@ -14,15 +14,17 @@
     </head>
     <body>
         <div class="title">Battleships</div>
-        <div class="player p1">
-            Player 1
-            <div class="connected">Connected <span></span></div>
-            <div class="ready">Ready <span></span></div>
-        </div>
-        <div class="player p2">
-            Player 2
-            <div class="connected">Connected <span></span></div>
-            <div class="ready">Ready <span></span></div>
+        <div class="container">
+            <div class="player p1">
+                Player 1
+                <div class="connected">Connected</div>
+                <div class="ready">Ready</div>
+            </div>
+            <div class="player p2">
+                Player 2
+                <div class="connected">Connected</div>
+                <div class="ready">Ready</div>
+            </div>
         </div>
         <div class="container">
             <div class="grid grid-user"></div>

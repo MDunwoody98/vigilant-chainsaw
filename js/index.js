@@ -107,7 +107,7 @@ $(function() {
         let player = `.p${parseInt(index) +1}`
         //template selector to get div of class p1 or p2 and the .connected div within it, and the span tag within it
         //Make that span green
-        document.querySelector(`${player} .connected span`).classList.toggle("green")
+        document.querySelector(`${player} .connected`).classList.toggle("active")
         //If the player that just connected is this client, make player indicator bold
         if (parseInt(index) == playerNum) document.querySelector(player).style.fontWeight = "bold";
     }
@@ -147,9 +147,8 @@ $(function() {
         var socket = new WebSocket('ws://localhost:8080');
         // Open the socket
         socket.onopen = function(e) {
-            var msg = 'I am the client and I have opened a socket connection.';
-            console.log('> ' + msg);
             // Send an initial message
+            console.log('Connecting to server...');
             socket.send(msg);
         };
 
@@ -191,10 +190,6 @@ $(function() {
             console.log('Client notified socket has closed', event);
             socket.close()
         };
-        //close socket on refresh
-        window.onload = function () {
-            socket.close();
-         };
         //Ready button click
         startButton.on("click", ()=>{
             if (allShipsPlaced) playGameMulti(socket)
@@ -315,7 +310,6 @@ $(function() {
       userSquares.forEach(square => square.addEventListener('dragenter',dragEnter))
       userSquares.forEach(square => square.addEventListener('dragleave',dragLeave))
       userSquares.forEach(square => square.addEventListener('drop',dragDrop))
-      userSquares.forEach(square => square.addEventListener('dragEnd',dragEnd))
 
       //variables to store ship being dragged
       let selectedShipAndIndex
@@ -388,9 +382,6 @@ $(function() {
             if (!displayGrid.querySelector(".ship")) allShipsPlaced = true;
         }
       }
-      function dragEnd(){
-          console.log('drag end')
-      }
       function generateForbiddenHorizontalSquares(draggedShipFinalIndex){
           let squares = []
           //We know userSquares will be a square number since it's typically 10*10 or 7*7 etc.
@@ -437,7 +428,7 @@ $(function() {
       }
       function playerReady(num) {
           let player = `.p${parseInt(num)+1}`
-          document.querySelector(`${player} .ready span`).classList.toggle("green")
+          document.querySelector(`${player} .ready`).classList.toggle("active")
       }
       //Single Player game logic
       function playGameSingle() {
@@ -469,7 +460,7 @@ $(function() {
           const opponentSquare = opponentGrid.querySelector(`div[data-id="${shotFired}"]`)
           const square = Object.values(classList)
           //don't carry out a turn if the square has already been guessed, if its not the user's turn, or if the game is over
-          console.log("Classes of targeted square are "+opponentSquare.classList)
+          console.log("ID of targeted square is "+shotFired)
           if ((opponentSquare.classList.contains('hit') || opponentSquare.classList.contains('miss')) || currentPlayer != "user" || isGameOver) return
           if (square.includes('destroyer')) destroyerCount++
           if (square.includes('cruiser')) cruiserCount++
@@ -508,10 +499,8 @@ $(function() {
         if (gameMode == "singlePlayer") playGameSingle()
       }
 
+      //Function to see if the user has won
       function checkForWins(){
-          //may be the wrong way round lol
-          console.log("hits on opponent's destroyer: "+opponentDestroyerCount)
-          console.log("hits on my carrier: "+ carrierCount)
           if (destroyerCount === 2) {
               infoDisplay.html("You have sunk the opponent's destroyer")
               destroyerCount = 10
@@ -570,40 +559,40 @@ $(function() {
 
 
       //code shamelessly stolen from class
-      var size = 4;
-      //buildBoard(size);
-      var data = {gridSize: size};
-      $(".cell").on("click",function(){
-        id = this.id;
-        var data = {id: this.id};
-        attack(JSON.stringify(data));
-      });
-      initBoard(JSON.stringify(data));
+    //   var size = 4;
+    //   //buildBoard(size);
+    //   var data = {gridSize: size};
+    //   $(".cell").on("click",function(){
+    //     id = this.id;
+    //     var data = {id: this.id};
+    //     attack(JSON.stringify(data));
+    //   });
+    //   initBoard(JSON.stringify(data));
 
-      function initBoard(data){
-          $.ajax(
-              {
-                  type:"POST",
-                  dataType:"json",
-                  data:"gridSize="+data,
-                  cache:false,
-                  url:"../php/initBoard.php",
-                  success:function(jsonObj){
-                      console.dir(jsonObj);
-                  }
-              });
-      }
-      function attack(data){
-          $.ajax(
-              {
-                  type:"POST",
-                  dataType:"json",
-                  data:"data="+data,
-                  cache:false,
-                  url:"../php/attack.php",
-                  success:function(jsonObj){
-                      console.dir(jsonObj);
-                  }
-              });
-      }
+    //   function initBoard(data){
+    //       $.ajax(
+    //           {
+    //               type:"POST",
+    //               dataType:"json",
+    //               data:"gridSize="+data,
+    //               cache:false,
+    //               url:"../php/initBoard.php",
+    //               success:function(jsonObj){
+    //                   console.dir(jsonObj);
+    //               }
+    //           });
+    //   }
+    //   function attack(data){
+    //       $.ajax(
+    //           {
+    //               type:"POST",
+    //               dataType:"json",
+    //               data:"data="+data,
+    //               cache:false,
+    //               url:"../php/attack.php",
+    //               success:function(jsonObj){
+    //                   console.dir(jsonObj);
+    //               }
+    //           });
+    //   }
 });
