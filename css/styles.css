@@ -7,8 +7,13 @@
     box-sizing: border-box;
 }
 
-.title {
+body {
+    background-color: azure;
+}
+
+.title *{
     font-family: 'Pirata One', cursive;
+    font-size: 5rem;
 }
 
 /*Center all content on page*/
@@ -22,7 +27,7 @@ Grid needs a margin to not hit edge of page.
 set background to gradient across browsers
 */
 .grid {
-    margin: 2vmin;
+    margin: 3vmin;
     display: grid;
     background: rgb(135,224,253); /* Old browsers */
     background: -moz-radial-gradient(center, ellipse cover,  rgba(135,224,253,1) 0%, rgba(83,203,241,1) 0%, rgba(5,171,224,1) 100%); /* FF3.6-15 */
@@ -119,7 +124,8 @@ set background to gradient across browsers
 }
 
 /*Hide opponent ships*/
-.grid-computer > .taken {
+.grid-computer > .taken,
+.grid-computer > .hit {
     background:none !important;
     border-radius: 0 !important;
 }
@@ -259,6 +265,7 @@ Animation for hits and misses
 }
 .player {
     margin: 3vmin;
+    font-size: 1.6rem;
 }
 
 .connected.active,

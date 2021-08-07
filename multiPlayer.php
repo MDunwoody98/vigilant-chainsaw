@@ -13,7 +13,9 @@
         <script src="js/index.js"></script>
     </head>
     <body>
-        <div class="title">Battleships</div>
+    <div class="title container">
+            <h1>Battleships</h1>
+        </div>
         <div class="container">
             <div class="player p1">
                 Player 1

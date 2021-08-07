@@ -15,6 +15,7 @@ class ServerSocketHandling implements MessageComponentInterface {
     //player 1 or 2
     public $players = array();
     public $playerIndex;
+    public $width = -1;
 
     //This method is invoked upon spinning up the docker image for the web socket server
     public function __construct()
@@ -30,6 +31,7 @@ class ServerSocketHandling implements MessageComponentInterface {
         $this->clients->attach($conn);
         echo "\nNew connection: {$conn->resourceId}\n";
         $this->playerIndex = -1;
+        if ($this->width == -1) $this->width = rand(6,10);
         //If there are fewer than 2 connections, give this connection an index
         for ($i=0; $i < 2; $i++) {
             if (sizeOf($this->players) === $i) {
@@ -52,6 +54,9 @@ class ServerSocketHandling implements MessageComponentInterface {
         {
             $client->send(json_encode($data2));
         }
+        //send board width
+        $data3->width = $this->width;
+        $conn->send(json_encode($data3));
     }
     //This method is invoked whenever a message is sent to the socket server from a client
     public function onMessage(ConnectionInterface $from, $msg)
@@ -146,6 +151,9 @@ class ServerSocketHandling implements MessageComponentInterface {
         foreach ($this->clients as $client)
         {
             $client->send(json_encode($data));
+        }
+        if (sizeof($this->players) == 0) {
+            $this->width = -1;
         }
     }
     public function getKeyForPlayerMatchingConnectionResourceId(ConnectionInterface $conn, bool $returnThisPlayerAndDontReturnEnemy)

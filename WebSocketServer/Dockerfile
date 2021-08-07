@@ -1,7 +1,5 @@
 #PHP CLI
 FROM php:7.2-cli
-#Websockers
-RUN docker-php-ext-install sockets
 # Install git
 RUN apt-get update && \
     apt-get upgrade -y && \

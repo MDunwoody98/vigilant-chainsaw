@@ -14,6 +14,5 @@
                 new ServerSocketHandling()
             )), 8080
         );
-
     $server->run();
 ?>

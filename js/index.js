@@ -16,9 +16,33 @@ $(function() {
     const grid = $(".grid")
     const buttons = $(".buttons")
 
-    const userSquares = []
+    let userSquares = []
     const opponentSquares = []
-    const width = 10;
+    //variables to store ship being dragged
+    let selectedShipAndIndex
+    let draggedShip
+    let draggedShipLength
+
+    //Ajax call to get width from php
+    //For multiplayer, get this value from the socket server
+    //Multiplayer version generates a new width each time the playerArray size is 0 on an onClose
+    //And it generates a new width each time the playerArray size is 1 on onOpen
+    jQuery.extend({
+        getValues: function(url) {
+            var result = null;
+            $.ajax({
+                url: url,
+                type: 'get',
+                dataType: 'json',
+                async: false,
+                success: function(data) {
+                    result = $.parseJSON(data);
+                }
+            });
+           return result;
+        }
+    });
+    let width = (gameMode == "singlePlayer")? $.getValues("../php/generateWidth.php") : 10;
 
     let isHorizontal = true;
     let isGameOver = false
@@ -31,53 +55,16 @@ $(function() {
     let allShipsPlaced = false;
     let shotFired = -1;
 
-    //grid of ships and their names and horizontal/vertical sizes
-    const shipArray = [
-        {
-            name: "destroyer",
-            directions: [
-                [0,1],
-                [0,width]
-            ]
-        },
-        {
-            name: "cruiser",
-            directions: [
-                [0,1,2],
-                [0,width, width * 2]
-            ]
-        },
-        {
-            name: "submarine",
-            directions: [
-                [0,1,2],
-                [0,width, width * 2]
-            ]
-        },
-        {
-            name: "battleship",
-            directions: [
-                [0,1,2,3],
-                [0,width, width*2, width*3]
-            ]
-        },
-        {
-            name: "carrier",
-            directions: [
-                [0,1,2,3,4],
-                [0,width, width*2, width*3, width*4]
-            ]
-        }
-    ]
     //Remove focus from clicked button css
     document.addEventListener('click', function(e) { if(document.activeElement.toString() == '[object HTMLButtonElement]'){ document.activeElement.blur(); } })
     //grid template rows and columns should be repeating - 10*4.6vm=46vmin. 46vmin+margin of 2 gives 100% of screen size
-    grid.css({"grid-template-columns": `repeat(${width}, 4.6vmin`});
-    grid.css({"grid-template-rows": `repeat(${width}, 4.6vmin)`});
-
-    //Create boards for user and opponent
-    createBoard(userGrid,userSquares,width)
-    createBoard(opponentGrid,opponentSquares,width)
+    if (gameMode == "singlePlayer") {
+        createBoard(userGrid,userSquares,width)
+        createBoard(opponentGrid,opponentSquares,width)
+        grid.css({"grid-template-columns": `repeat(${width}, 4.6vmin`});
+        grid.css({"grid-template-rows": `repeat(${width}, 4.6vmin)`});
+        generateShipDragBehaviour()
+    }
 
     //Start game based on single/multiplayer page
     if (gameMode == "singlePlayer") startSinglePlayer()
@@ -105,11 +92,14 @@ $(function() {
     function playerConnectedOrDisconnected(index){
         //player 0 is 1, player 1 is 2
         let player = `.p${parseInt(index) +1}`
-        //template selector to get div of class p1 or p2 and the .connected div within it, and the span tag within it
-        //Make that span green
+        //template selector to get div of class p1 or p2 and the .connected div within it, and toggle active
         document.querySelector(`${player} .connected`).classList.toggle("active")
-        //If the player that just connected is this client, make player indicator bold
-        if (parseInt(index) == playerNum) document.querySelector(player).style.fontWeight = "bold";
+        //Can't be ready if not connected
+        if (!document.querySelector(`${player} .connected`).classList.contains("active") && document.querySelector(`${player} .ready`).classList.contains("active")) {
+            document.querySelector(`${player} .ready`).classList.remove("active")
+        }
+        //If the player that just connected is this client, make player indicator bigger
+        if (parseInt(index) == playerNum) document.querySelector(player).style.fontSize = "1.8rem";
     }
 
     function processEnemyReady(socket, indexOfReadyPlayer){
@@ -128,6 +118,7 @@ $(function() {
     }
     //Attack has been received
     function processAttack(socket, indexOfTargetedSquare){
+        //Pull opponentGo function into here for multiplayer client-side resolution
         opponentGo(indexOfTargetedSquare)
         const square = userSquares[indexOfTargetedSquare]
         let message = {fireReply: square.classList}
@@ -140,6 +131,27 @@ $(function() {
         playGameMulti(socket)
     }
 
+    function generateMultiplayerBoards(width, socket){
+        //Create boards for user and opponent
+        width = width
+        createBoard(userGrid,userSquares,width)
+        createBoard(opponentGrid,opponentSquares,width)
+        grid.css({"grid-template-columns": `repeat(${width}, 4.6vmin`});
+        grid.css({"grid-template-rows": `repeat(${width}, 4.6vmin)`});
+        generateShipDragBehaviour()
+        opponentSquares.forEach(square => {
+            square.addEventListener("click", ()=>{
+                if (currentPlayer == "user" && ready && enemyReady) {
+                    console.log("here")
+                    shotFired = square.dataset.id
+                    let data = {shotFired: shotFired}
+                    //each time a squar is clicked, send its id to the server
+                    socket.send(JSON.stringify(data))
+                }
+            });
+        });
+    }
+
     //Multi Player
     function startMultiPlayer(){
         //Socket logic - making a connection to PHP web socket server from JS client in browser
@@ -149,7 +161,7 @@ $(function() {
         socket.onopen = function(e) {
             // Send an initial message
             console.log('Connecting to server...');
-            socket.send(msg);
+            socket.send("I am the client and I have opened a socket connection");
         };
 
         // Listen for messages
@@ -173,6 +185,7 @@ $(function() {
                 case message.playerConnection != null:
                     playerConnection(message.playerConnection);
                     break;
+                case message.width != null: generateMultiplayerBoards(message.width, socket);break;
                 //The server is telling the cient that the opponent client has readied up 
                 case message.enemyReady == true: processEnemyReady(this, message.indexOfReadyPlayer);break;
                 //The server is telling the client info regarding other connections that may already exist 
@@ -190,60 +203,34 @@ $(function() {
             console.log('Client notified socket has closed', event);
             socket.close()
         };
+        
         //Ready button click
         startButton.on("click", ()=>{
             if (allShipsPlaced) playGameMulti(socket)
             else infoDisplay.html("Please place all your ships!")
-        })
-        opponentSquares.forEach(square => {
-            square.addEventListener("click", ()=>{
-                if (currentPlayer == "user" && ready && enemyReady) {
-                    shotFired = square.dataset.id
-                    let data = {shotFired: shotFired}
-                    //each time a squar is clicked, send its id to the server
-                    socket.send(JSON.stringify(data))
-                }
-            });
         });
     }
 
     //Single Player
     function startSinglePlayer(){
         //only generate computer ships in single player mode
-        shipArray.forEach(ship => generate(ship,width))
+        //AJAX generate board
+        //Create boards for user and opponent
+        $.ajax(
+            {
+                cache:false,
+                url:"../php/initBoard.php",
+                success: function(jsonObj){
+                    console.log(jsonObj);
+                }
+            });
         startButton.on("click", () => {
             if (allShipsPlaced) playGameSingle()
             else infoDisplay.html("Please place all your ships!")
         })
     }
-
-    function initBoardAjax(data){
-        $.ajax(
-            {
-                type: "POST",
-                dataType: "json",
-                data: "gridsize="+data,
-                cache:false,
-                url:"../php/initBoard.php",
-                success: function(jsonObj){
-                    console.dir(jsonObj);
-                }
-            });
-    }
-    function attackAjax(data){
-        $.ajax(
-            {
-                type: "POST",
-                dataType: "json",
-                data: "target="+data,
-                cache:false,
-                url:"../php/initBoard.php",
-                success: function(jsonObj){
-                    console.dir(jsonObj);
-                }
-            });
-    }
-
+    //squares array of div with id 0->(width**2)-1
+    //HTML Grid to contain them all
     function createBoard(grid, squares, width){
         for (let index = 0; index < width ** 2; index++) {
             const square = document.createElement('div')
@@ -252,36 +239,6 @@ $(function() {
             grid.append(square)
             squares.push(square)
         }
-    }
-    
-
-
-    function generate(ship, width){
-        //0 or 1 - horizontal or vertical
-        let randomDirection = Math.floor(Math.random() * ship.directions.length)
-        //Orientation will be the values for the specific ship's horizontal or vertical squares 
-        let chosenOrientation = ship.directions[randomDirection]
-        //If horizontal, set direction to 1. If horizontal set to 10. This value is used to paint the ships on grid
-        let direction = randomDirection == 0 ? 1 : width
-        //Start position for ship. Random square on grid take away the ship direction's length * direction
-        //horizontal - cruiser will have 3 subtracted. For vertical it will have 30 subtracted as it cannot start on cells 71-100
-        //This allows the ship to be wholly painted onto the grid from assigning a "safe" start position that won't overflow
-        let randomStartPosition = Math.floor(Math.random() * (opponentSquares.length - (ship.directions[0].length * direction)))
-        //Make sure square is not already taken by other ship
-        //for each square that would be consumed by the current ship at its chosen orientation,
-        //check the grid for the AI's ship positions, starting at randomStartPosition.
-        //If any of the squares contains a class of "taken" then a different random start position must be used
-        const isTaken = chosenOrientation.some(index =>opponentSquares[randomStartPosition + index].classList.contains("taken"))
-        //assume width is 10 for a 10x10 grid. Check the start position - should be from 1-100
-        //Check each square that the ship will occupy. If that square's index % width is equal to width-1, it is on the right edge
-        //Exception if the index is the final one of the ship, as that is fine to be in the rightmost column
-        const isAtRightEdge = chosenOrientation.slice(0,-1).some(index => (randomStartPosition + index) % width === width -1)
-        //Check if ship will be on left edge if any of its squares' (indices % width) equal 0
-        //Exception if the index is the first one of the ship, as that is fine to be in the leftmost column
-        const isAtLeftEdge = chosenOrientation.slice(1).some(index => (randomStartPosition + index) % width === 0)
-        //If all these are good, ship is painted onto the board. Otherwise, run function again to try a different position
-        if (!isTaken && !isAtRightEdge && !isAtLeftEdge) chosenOrientation.forEach(index => opponentSquares[randomStartPosition + index].classList.add('taken', ship.name))
-        else generate(ship, width)
     }
 
     //Call rotate function when rotate button is clicked
@@ -301,25 +258,22 @@ $(function() {
         element.classList.toggle(class1);
       }
 
-      //ship drag and drop handler
-      //Add event listeners to ships
-      ships.on('dragstart', dragStart)
-      //The following event listeners allow squares in the user grid to accept ships
-      userSquares.forEach(square => square.addEventListener('dragStart',dragStart))
-      userSquares.forEach(square => square.addEventListener('dragover',dragOver))
-      userSquares.forEach(square => square.addEventListener('dragenter',dragEnter))
-      userSquares.forEach(square => square.addEventListener('dragleave',dragLeave))
-      userSquares.forEach(square => square.addEventListener('drop',dragDrop))
+      function generateShipDragBehaviour(){
+        //ship drag and drop handler
+        //Add event listeners to ships
+        ships.on('dragstart', dragStart)
+        //The following event listeners allow squares in the user grid to accept ships
+        userSquares.forEach(square => square.addEventListener('dragStart',dragStart))
+        userSquares.forEach(square => square.addEventListener('dragover',dragOver))
+        userSquares.forEach(square => square.addEventListener('dragenter',dragEnter))
+        userSquares.forEach(square => square.addEventListener('dragleave',dragLeave))
+        userSquares.forEach(square => square.addEventListener('drop',dragDrop))
 
-      //variables to store ship being dragged
-      let selectedShipAndIndex
-      let draggedShip
-      let draggedShipLength
-
-      ships.on('mousedown', function(e){
-        //When beginning a drag of any ship, get the ID of the square that the mouse was hovering over. For submarine, this will return submarine-0, submarine-1 or submarine-2
-        selectedShipAndIndex = e.target.id
-      })
+        ships.on('mousedown', function(e){
+            //When beginning a drag of any ship, get the ID of the square that the mouse was hovering over. For submarine, this will return submarine-0, submarine-1 or submarine-2
+            selectedShipAndIndex = e.target.id
+        })
+      }
 
       function dragStart(){
           draggedShip = this
@@ -434,10 +388,31 @@ $(function() {
       function playGameSingle() {
           if (isGameOver) return
           buttons.css({"display":"none"})
+          let userState = []
+          //update server with status of user board
+          userSquares.forEach(square=>userState.push(square.classList));
+          $.ajax(
+            {
+                type: "POST",
+                dataType: "json",
+                data: "board="+JSON.stringify(userState),
+                cache:false,
+                url:"../php/updateUserBoard.php"
+            });
           if (currentPlayer === 'user'){
               opponentSquares.forEach(square => square.addEventListener('click', function(e){
                   shotFired = square.dataset.id
-                  revealSquare(square.classList)
+                  console.log("shot fired "+shotFired)
+                  //classlist and message
+                  $.ajax(
+                      {
+                          type: "POST",
+                          dataType: "json",
+                          data: "target="+JSON.stringify({target: shotFired}),
+                          cache:false,
+                          url:"../php/attack.php",
+                          success: (jsonObj) => revealSquare(jsonObj)
+                      });
               }));
           }
           if (currentPlayer === 'enemy'){
@@ -455,19 +430,21 @@ $(function() {
       let opponentBattleshipCount = 0
       let opponentCarrierCount = 0
 
-      function revealSquare(classList) {
+      function revealSquare(data) {
+          let classList = (gameMode == "singlePlayer") ? data[0] : data
+          let message= (typeof data[1] === 'undefined') ? null : data[1]
           //The square that the client just shot
           const opponentSquare = opponentGrid.querySelector(`div[data-id="${shotFired}"]`)
+          if (gameMode == "multiPlayer") $(`.grid-computer div[data-id="${shotFired}"]`).off()
           const square = Object.values(classList)
           //don't carry out a turn if the square has already been guessed, if its not the user's turn, or if the game is over
-          console.log("ID of targeted square is "+shotFired)
-          if ((opponentSquare.classList.contains('hit') || opponentSquare.classList.contains('miss')) || currentPlayer != "user" || isGameOver) return
+          //if it's already been hit/missed in single player, message will not be null. 
+          if ((opponentSquare.classList.contains('hit') || opponentSquare.classList.contains('miss') && (message != null || gameMode == "multiPlayer")) || currentPlayer != "user" || isGameOver) return
           if (square.includes('destroyer')) destroyerCount++
           if (square.includes('cruiser')) cruiserCount++
           if (square.includes('submarine')) submarineCount++
           if (square.includes('battleship')) battleshipCount++
           if (square.includes('carrier')) carrierCount++
-
           if (square.includes('taken')) {
             opponentSquare.classList.add('hit')
           } else {
@@ -482,22 +459,26 @@ $(function() {
           //Param is undefined for single player version - only provided if sent by opponent
           squareToAttack = (gameMode == "singlePlayer") ? userSquares[Math.floor(Math.random() * userSquares.length)] : userSquares[squareToAttack]
           //run function again if square has already been tried
-          if ((squareToAttack.classList.contains('hit') || squareToAttack.classList.contains('miss')) && gameMode == "singlePlayer") opponentGo()
-          if (squareToAttack.classList.contains('destroyer')) opponentDestroyerCount++
-          if (squareToAttack.classList.contains('cruiser')) opponentCruiserCount++
-          if (squareToAttack.classList.contains('submarine')) opponentSubmarineCount++
-          if (squareToAttack.classList.contains('battleship')) opponentBattleshipCount++
-          if (squareToAttack.classList.contains('carrier')) opponentCarrierCount++
-          checkForWins()
-          if (squareToAttack.classList.contains('taken')) {
-            squareToAttack.classList.add('hit')
-        } else {
-            squareToAttack.classList.add('miss')
+          if (squareToAttack.classList.contains('hit') || squareToAttack.classList.contains('miss')){
+            opponentGo()
+          }
+          else {
+            if (squareToAttack.classList.contains('destroyer')) opponentDestroyerCount++
+            if (squareToAttack.classList.contains('cruiser')) opponentCruiserCount++
+            if (squareToAttack.classList.contains('submarine')) opponentSubmarineCount++
+            if (squareToAttack.classList.contains('battleship')) opponentBattleshipCount++
+            if (squareToAttack.classList.contains('carrier')) opponentCarrierCount++
+            checkForWins()
+            if (squareToAttack.classList.contains('taken')) {
+                squareToAttack.classList.add('hit')
+            } else {
+                squareToAttack.classList.add('miss')
+            }
+            turnDisplay.html('Your turn')
+            currentPlayer = 'user'
+            if (gameMode == "singlePlayer") playGameSingle()
         }
-        turnDisplay.html('Your turn')
-        currentPlayer = 'user'
-        if (gameMode == "singlePlayer") playGameSingle()
-      }
+    }
 
       //Function to see if the user has won
       function checkForWins(){
@@ -551,48 +532,12 @@ $(function() {
           }
       }
       function gameOver() {
-          isGameOver = true
-          startButton.off('click', playGameSingle)
-      }
-
-
-
-
-      //code shamelessly stolen from class
-    //   var size = 4;
-    //   //buildBoard(size);
-    //   var data = {gridSize: size};
-    //   $(".cell").on("click",function(){
-    //     id = this.id;
-    //     var data = {id: this.id};
-    //     attack(JSON.stringify(data));
-    //   });
-    //   initBoard(JSON.stringify(data));
-
-    //   function initBoard(data){
-    //       $.ajax(
-    //           {
-    //               type:"POST",
-    //               dataType:"json",
-    //               data:"gridSize="+data,
-    //               cache:false,
-    //               url:"../php/initBoard.php",
-    //               success:function(jsonObj){
-    //                   console.dir(jsonObj);
-    //               }
-    //           });
-    //   }
-    //   function attack(data){
-    //       $.ajax(
-    //           {
-    //               type:"POST",
-    //               dataType:"json",
-    //               data:"data="+data,
-    //               cache:false,
-    //               url:"../php/attack.php",
-    //               success:function(jsonObj){
-    //                   console.dir(jsonObj);
-    //               }
-    //           });
-    //   }
+        isGameOver = true
+        //unset session vars
+        $.get("../php/gameOver.php", function(){
+            setTimeout(6000,function(){
+                location.reload();
+            });
+      });
+    }
 });
