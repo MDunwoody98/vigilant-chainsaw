@@ -71,13 +71,13 @@ function generate($ship, $width, &$opponentSquares){
     //Exception if the index is the final one of the ship, as that is fine to be in the rightmost column
     $isAtRightEdge = false;
     foreach (array_slice($chosenOrientation,0,-1) as $index) {
-        if (($randomStartPosition + $index % $width) === $width -1) $isAtRightEdge = true;
+        if (($randomStartPosition + $index) % $width === $width -1) $isAtRightEdge = true;
     }
     //Check if ship will be on left edge if any of its squares' (indices % width) equal 0
     //Exception if the index is the first one of the ship, as that is fine to be in the leftmost column
     $isAtLeftEdge = false;
     foreach (array_slice($chosenOrientation,1) as $index) {
-        if ($randomStartPosition + $index % $width === 0) $isAtLeftEdge = true;
+        if (($randomStartPosition + $index) % $width === 0) $isAtLeftEdge = true;
     }
     //If all these are good, ship is painted onto the board. Otherwise, run function again to try a different position
     if (!$isTaken && !$isAtRightEdge && !$isAtLeftEdge)

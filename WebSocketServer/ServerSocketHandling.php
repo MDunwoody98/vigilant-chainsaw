@@ -32,17 +32,23 @@ class ServerSocketHandling implements MessageComponentInterface {
         echo "\nNew connection: {$conn->resourceId}\n";
         $this->playerIndex = -1;
         if ($this->width == -1) $this->width = rand(6,10);
-        //If there are fewer than 2 connections, give this connection an index
-        for ($i=0; $i < 2; $i++) {
-            if (sizeOf($this->players) === $i) {
-                $this->playerIndex = $i;
-            }
+        //If there are no connected players, give this connection an index of 0
+        if (sizeOf($this->players) === 0) {
+            $this->playerIndex = 0;
         }
+        //If one other player has connected, give this player an index of either 1 or 0 - whichever does not currently exist
+        if (sizeOf($this->players) === 1) {
+            $this->playerIndex =  $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($conn, false)]->getIndex() == 0 ? 1 : 0;
+        }
+        
         //Tell the client their player number
         $data->playerIndex = $this->playerIndex;
         //data must be a php object but can be sent as a json encoded string to client
         $conn->send(json_encode($data));
         echo "Player {$this->playerIndex} has connected with connection id {$conn->resourceId}\n";
+        //send board width
+        $data3->width = $this->width;
+        $conn->send(json_encode($data3));
         //Ignore any client if 2 players already connected
         if ($this->playerIndex == -1 ) {return;}
         //Players array - was null, now add client and set ready to false to indicate that the connection exists and player is not ready to play
@@ -54,9 +60,6 @@ class ServerSocketHandling implements MessageComponentInterface {
         {
             $client->send(json_encode($data2));
         }
-        //send board width
-        $data3->width = $this->width;
-        $conn->send(json_encode($data3));
     }
     //This method is invoked whenever a message is sent to the socket server from a client
     public function onMessage(ConnectionInterface $from, $msg)
@@ -144,10 +147,11 @@ class ServerSocketHandling implements MessageComponentInterface {
     {
         $this->clients->detach($conn);
         echo "Closing connection: {$conn->resourceId}\n";
+        $index = $this->players[$this->getKeyForPlayerMatchingConnectionResourceId($conn, true)]->getIndex();
         unset($this->players[$this->getKeyForPlayerMatchingConnectionResourceId($conn, true)]);
         echo "After closing {$conn->resourceId}, the connected players array size is ". sizeof($this->players);
         //inform all clients that a connection has died
-        $data->playerConnection = $this->playerIndex;
+        $data->playerConnection = $index;
         foreach ($this->clients as $client)
         {
             $client->send(json_encode($data));
@@ -159,6 +163,7 @@ class ServerSocketHandling implements MessageComponentInterface {
     public function getKeyForPlayerMatchingConnectionResourceId(ConnectionInterface $conn, bool $returnThisPlayerAndDontReturnEnemy)
     {
         //Get key for players array that corresponds to the resource ID of the object implementing ConnectionInterface
+        //returnThisPlayerAndDontReturnEnemy - true to return player key for current client, false to get enemy
         foreach ($this->players as $connectedPlayer) {
             if (($connectedPlayer->getResourceId() == $conn->resourceId) == $returnThisPlayerAndDontReturnEnemy) {
                 //Have to get key when we have value.

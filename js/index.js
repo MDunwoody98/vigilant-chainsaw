@@ -91,25 +91,24 @@ $(function() {
             if (classArrayForSelectedTile.includes("hit")) {
                 userHitMissCount++;
                 if (classArrayForSelectedTile.includes("destroyer")) {
-                    IncrementAndSetVariableToTenIfValueIsParam(opponentDestroyerCount,2)
-                    opponentDestroyerCount++
-                    if (opponentDestroyerCount === 2) opponentDestroyerCount = 10
+                    if (opponentDestroyerCount + 1 === 2) opponentDestroyerCount = 10
+                    else opponentDestroyerCount++
                 }
                 if (classArrayForSelectedTile.includes("submarine")) {
-                    opponentSubmarineCount++
-                    if (opponentSubmarineCount === 3) opponentSubmarineCount = 10
+                    if (opponentSubmarineCount + 1 === 3) opponentSubmarineCount = 10
+                    else opponentSubmarineCount++
                 }
                 if (classArrayForSelectedTile.includes("cruiser")) {
-                    opponentCruiserCount++
-                    if (opponentCruiserCount === 3) opponentCruiserCount = 10
+                    if (opponentCruiserCount + 1 === 3) opponentCruiserCount = 10
+                    else opponentCruiserCount++
                 }
                 if (classArrayForSelectedTile.includes("battleship")) {
-                    opponentBattleshipCount++
-                    if (opponentBattleshipCount === 4) opponentBattleshipCount = 10
+                    if (opponentBattleshipCount + 1 === 4) opponentBattleshipCount = 10
+                    else opponentBattleshipCount++
                 }
                 if (classArrayForSelectedTile.includes("carrier")) {
-                    opponentCarrierCount++
-                    if (opponentCarrierCount === 5) opponentCarrierCount = 10
+                    if (opponentCarrierCount + 1 === 5) opponentCarrierCount = 10
+                    else opponentCarrierCount++
                 }
             }
         }
@@ -119,27 +118,27 @@ $(function() {
                 cpuHitMissCount++;
                 cpuArray[index] = "hit";
                 if (classArrayForSelectedTile.includes("destroyer")) {
-                    carrierCount++
-                    if (carrierCount === 2) carrierCount = 10
+                    if (destroyerCount + 1 === 2) destroyerCount = 10
+                    else destroyerCount++
                 }
                 if (classArrayForSelectedTile.includes("submarine")) {
-                    submarineCount++
-                    if (submarineCount === 3) submarineCount = 10
+                    if (submarineCount + 1 === 3) submarineCount = 10
+                    else submarineCount++
                 }
                 if (classArrayForSelectedTile.includes("cruiser")) {
-                    cruiserCount++
-                    if (cruiserCount === 3) cruiserCount = 10
+                    if (cruiserCount + 1 === 3) cruiserCount = 10
+                    else cruiserCount++
                 }
                 if (classArrayForSelectedTile.includes("battleship")) {
-                    battleshipCount++
-                    if (battleshipCount === 4) battleshipCount = 10
+                    if (battleshipCount + 1 === 4) battleshipCount = 10
+                    else battleshipCount++
                 }
                 if (classArrayForSelectedTile.includes("carrier")) {
-                    carrierCount++
-                    if (carrierCount === 5) carrierCount = 10
+                    if (carrierCount + 1 === 5) carrierCount = 10
+                    else carrierCount++
                 }
             }
-            if (Object.values(userStateArray[index]).includes("miss")){
+            if (Object.values(cpuStateArray[index]).includes("miss")){
                 cpuHitMissCount++;
                 cpuArray[index] = "miss";
             }
@@ -152,9 +151,7 @@ $(function() {
         cpuArray.forEach((value, key) => {
             opponentSquares[key].classList.add(value)
         })
-        console.log(userHitMissCount)
-        console.log(cpuHitMissCount)
-        if (userHitMissCount >= cpuHitMissCount){
+        if (userHitMissCount <= cpuHitMissCount){
             currentPlayer = "user"
         } 
         else currentPlayer = "enemy"
@@ -162,6 +159,7 @@ $(function() {
         while (displayGrid.firstChild) {
             displayGrid.removeChild(displayGrid.lastChild);
         }
+        //play single player - multiplayer does not support saving state
         playGameSingle()
     }
 
@@ -184,10 +182,9 @@ $(function() {
                 url:"../php/retrieveGameState.php",
                 success: (jsonObj) => resumeState(jsonObj)
             });
-    }
-
-    //Start game based on single/multiplayer page
-    if (gameMode == "singlePlayer") startSinglePlayer()
+            //Start game based on single/multiplayer page
+        startSinglePlayer()
+    }    
     else startMultiPlayer()
     
     //Multiplayer function - get client's player index
@@ -198,7 +195,10 @@ $(function() {
         }
         playerNum = parseInt(index)
         //Player 1 is going to be enemy
-        if (playerNum === 1) currentPlayer = "enemy"
+        if (playerNum === 1) {
+            currentPlayer = "enemy"
+            turnDisplay.html("Opponent's turn")
+        }
         //Check to see if other player(s) are connected and their status
         let data = {checkPlayers: true}
         socket.send(JSON.stringify(data))
@@ -211,6 +211,7 @@ $(function() {
 
     function playerConnectedOrDisconnected(index){
         //player 0 is 1, player 1 is 2
+        console.log("Swapping setting for " + (index+1))
         let player = `.p${parseInt(index) +1}`
         //template selector to get div of class p1 or p2 and the .connected div within it, and toggle active
         document.querySelector(`${player} .connected`).classList.toggle("active")
@@ -219,7 +220,8 @@ $(function() {
             document.querySelector(`${player} .ready`).classList.remove("active")
         }
         //If the player that just connected is this client, make player indicator bigger
-        if (parseInt(index) == playerNum) document.querySelector(player).style.fontSize = "1.8rem";
+        if (parseInt(index) == playerNum) document.querySelector(player).style.fontSize = "1.8rem"
+        else document.querySelector(player).style.fontSize = "1.6rem"
     }
 
     function processEnemyReady(socket, indexOfReadyPlayer){
@@ -251,14 +253,15 @@ $(function() {
         playGameMulti(socket)
     }
 
-    function generateMultiplayerBoards(width, socket){
+    function generateMultiplayerBoards(widthObtained, socket){
         //Create boards for user and opponent
-        width = width
+        width = widthObtained
+        console.log(width)
         createBoard(userGrid,userSquares,width)
         createBoard(opponentGrid,opponentSquares,width)
         grid.css({"grid-template-columns": `repeat(${width}, 4.6vmin`});
         grid.css({"grid-template-rows": `repeat(${width}, 4.6vmin)`});
-        generateShipDragBehaviour()
+        generateShipDragBehaviour(width)
         opponentSquares.forEach(square => {
             square.addEventListener("click", ()=>{
                 if (currentPlayer == "user" && ready && enemyReady) {
@@ -419,7 +422,8 @@ $(function() {
         //Square receiving mouse drop of battleship
         let squareReceivingDrop = parseInt(this.dataset.id)
         //for calculating ships, use 1 for horizontal or the board width for vertical calculations
-        horizontalOffset = isHorizontal ? 1 : width 
+        horizontalOffset = isHorizontal ? 1 : width
+        console.log(width)
         //This string will be used to round the edge of the ship being placed on the grid in the correct areas
         let orientationClass = isHorizontal ? "horizontal" : "vertical"
         //final index (rightmost or bottom) of dragged ship upon being placed on board
@@ -453,6 +457,7 @@ $(function() {
              }
             squaresToPaint.forEach((squareIndex, shipStartEndClass) => {
                 userSquares[squareIndex].classList.add('taken',draggedShipNameClass, orientationClass, shipStartEndClass)
+                //ships should not be able to be re-dragged on hard click from inside userGrid
                 userGrid.find(`[data-id="${squareIndex}"]`).mousedown(function(){return false})
             })
             displayGrid.removeChild(draggedShip)
@@ -538,29 +543,20 @@ $(function() {
                 url:"../php/updateUserBoard.php"
             });
           if (currentPlayer === 'user'){
+              //Add click handler to opponent's board
             $(".grid-computer div").each(function(){
                 if ($(this).attr("class") === undefined) {
                     $(this).on("click",function(){
                     shotFired = this.dataset.id
                     console.log("shot fired "+shotFired)
                     shootEnemy(shotFired)
+                    //Remove click handler if square already clicked
                     $(this).off()
                     })
                 }
                 else $(this).off()
                 
             })
-            //   opponentSquares.forEach(square => {
-            //       if (square.classList.length == 0) {
-            //         square.addEventListener('click', function(e){
-            //             shotFired = square.dataset.id
-            //             console.log("shot fired "+shotFired)
-            //             shootEnemy(shotFired)
-            //             $(`.grid-computer div[data-id="${shotFired}"]`).off()
-            //             //classlist and message
-            //             });
-            //         }
-            //     }); 
             }
           if (currentPlayer === 'enemy'){
             setTimeout(opponentGo, 1000)
@@ -671,6 +667,10 @@ $(function() {
       }
       function gameOver() {
         isGameOver = true
+        //
+        if (gameMode == "multiPlayer") {
+            document.querySelector(`.ready`).classList.remove("active")
+        }
         //unset session vars
         $.get("../php/gameOver.php", function(){
             setTimeout(6000,function(){
