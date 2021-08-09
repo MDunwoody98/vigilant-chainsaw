@@ -667,7 +667,7 @@ $(function() {
       }
       function gameOver() {
         isGameOver = true
-        //
+        //unready multiplayer connections
         if (gameMode == "multiPlayer") {
             document.querySelector(`.ready`).classList.remove("active")
         }
