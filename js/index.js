@@ -75,7 +75,6 @@ $(function() {
         cpuHitMissCount = 0;
         userStateArray = jsonObj[0]
         cpuStateArray = jsonObj[1]
-        console.log(cpuStateArray)
         userArray = []
         cpuArray = []
         if (typeof(userStateArray) === undefined && typeof(cpuStateArray) === undefined) return;
@@ -211,7 +210,6 @@ $(function() {
 
     function playerConnectedOrDisconnected(index){
         //player 0 is 1, player 1 is 2
-        console.log("Swapping setting for " + (index+1))
         let player = `.p${parseInt(index) +1}`
         //template selector to get div of class p1 or p2 and the .connected div within it, and toggle active
         document.querySelector(`${player} .connected`).classList.toggle("active")
@@ -220,8 +218,8 @@ $(function() {
             document.querySelector(`${player} .ready`).classList.remove("active")
         }
         //If the player that just connected is this client, make player indicator bigger
-        if (parseInt(index) == playerNum) document.querySelector(player).style.fontSize = "1.8rem"
-        else document.querySelector(player).style.fontSize = "1.6rem"
+        if (parseInt(index) == playerNum) document.querySelector(player).style.fontSize = "1.7rem"
+        else document.querySelector(player).style.fontSize = "1.5rem"
     }
 
     function processEnemyReady(socket, indexOfReadyPlayer){
@@ -256,7 +254,6 @@ $(function() {
     function generateMultiplayerBoards(widthObtained, socket){
         //Create boards for user and opponent
         width = widthObtained
-        console.log(width)
         createBoard(userGrid,userSquares,width)
         createBoard(opponentGrid,opponentSquares,width)
         grid.css({"grid-template-columns": `repeat(${width}, 4.6vmin`});
@@ -265,7 +262,6 @@ $(function() {
         opponentSquares.forEach(square => {
             square.addEventListener("click", ()=>{
                 if (currentPlayer == "user" && ready && enemyReady) {
-                    console.log("here")
                     shotFired = square.dataset.id
                     let data = {shotFired: shotFired}
                     //each time a squar is clicked, send its id to the server
@@ -336,7 +332,6 @@ $(function() {
 
     //Single Player
     function startSinglePlayer(){
-        console.log("Start single ")
         //only generate computer ships in single player mode
         //AJAX generate board
         //Create boards for user and opponent
@@ -423,7 +418,6 @@ $(function() {
         let squareReceivingDrop = parseInt(this.dataset.id)
         //for calculating ships, use 1 for horizontal or the board width for vertical calculations
         horizontalOffset = isHorizontal ? 1 : width
-        console.log(width)
         //This string will be used to round the edge of the ship being placed on the grid in the correct areas
         let orientationClass = isHorizontal ? "horizontal" : "vertical"
         //final index (rightmost or bottom) of dragged ship upon being placed on board
@@ -528,7 +522,6 @@ $(function() {
       }
       //Single Player game logic
       function playGameSingle() {
-          console.log("heya")
           if (isGameOver) return
           buttons.css({"display":"none"})
           let userState = []
@@ -548,7 +541,6 @@ $(function() {
                 if ($(this).attr("class") === undefined) {
                     $(this).on("click",function(){
                     shotFired = this.dataset.id
-                    console.log("shot fired "+shotFired)
                     shootEnemy(shotFired)
                     //Remove click handler if square already clicked
                     $(this).off()
@@ -612,10 +604,6 @@ $(function() {
 
       //Function to see if the user has won
       function checkForWins(){
-          console.log(carrierCount)
-          console.log(battleshipCount)
-          console.log(opponentCarrierCount)
-          console.log(opponentBattleshipCount)
           if (destroyerCount === 2) {
               infoDisplay.html("You have sunk the opponent's destroyer")
               destroyerCount = 10

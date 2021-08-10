@@ -19,7 +19,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST["target"]))
     $jsonData = json_decode($_POST["target"]);
     $targetedSquare = $jsonData->target;
     $classListOfTargetedSquare = $board[$targetedSquare];
-    //echo json_encode($classListOfTargetedSquare);
     //Otherwise, if the array is not empty, we know the player has hit a ship
     //client side validation prevents same square being clicked multiple times
     if (sizeof($classListOfTargetedSquare) > 0){
